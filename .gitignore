@@ -64,6 +64,8 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+~$*
+*.tmp
 
 # Kaggle Output artifacts (keep templates, ignore heavy cached runs)
 kaggle_output/
