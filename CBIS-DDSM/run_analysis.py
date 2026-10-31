@@ -3,12 +3,12 @@ CBIS-DDSM Mammography Analytics & Image Quality Assessment (IQA) Pipeline.
 Modality: Mammography (Screening Projection Radiography: CC & MLO Views)
 Dataset: Curated Breast Imaging Subset of DDSM (CBIS-DDSM)
 
-Features:
+Scope:
 1. Dataset Characterization & Metadata Loading (Masses vs Calcifications, Benign vs Malignant, BI-RADS)
 2. Inherent Radiographic Challenges Analysis (Film grain, dense tissue masking, scanner artifacts)
 3. Multi-Metric Image Quality Assessment (Laplacian, Tenengrad, RMS, Michelson, Entropy, SNR)
 4. Statistical Analysis & Visual Quality Distributions
-5. Learned Decision Tree for Quality-Aware Adaptive Clinical Routing
+5. Enriched Dataset IQA Metadata Export
 """
 
 import os
@@ -31,10 +31,6 @@ from common.iqa_metrics import (
     compute_shannon_entropy,
     compute_snr_mad,
     extract_all_iqa_metrics,
-)
-from common.adaptive_decision_tree import (
-    AdaptiveClinicalDecisionTree,
-    generate_ground_truth_routing_policy,
 )
 
 # ---------------------------------------------------------
@@ -87,29 +83,28 @@ def generate_synthetic_mammography_samples(output_dir: str, num_samples: int = 6
         h, w = 384, 256
         img = np.zeros((h, w), dtype=np.uint8)
 
-        # Draw anatomical breast profile (arc extending from left edge)
+        # Draw anatomical breast profile
         center = (0, int(h * 0.5))
         axes = (int(w * 0.90), int(h * 0.45))
         cv2.ellipse(img, center, axes, 0, -90, 90, 85, -1)
 
-        # Add pectoral muscle on MLO view (triangular high density in upper chest)
+        # Add pectoral muscle on MLO view
         if view == "MLO":
             pts = np.array([[0, 0], [int(w * 0.45), 0], [0, int(h * 0.40)]], np.int32)
             cv2.fillPoly(img, [pts], 160)
 
-        # Add fibroglandular parenchyma (swirling clouds of glandular tissue)
+        # Dense fibroglandular parenchyma
         dense_parenchyma = np.zeros((h, w), dtype=np.uint8)
         cv2.ellipse(dense_parenchyma, center, (int(w * 0.65), int(h * 0.35)), 0, -90, 90, 50, -1)
         dense_parenchyma = cv2.GaussianBlur(dense_parenchyma, (35, 35), 0)
         img = cv2.add(img, dense_parenchyma)
 
-        # Inject abnormality lesion
+        # Lesion
         cx = np.random.randint(int(w * 0.25), int(w * 0.70))
         cy = np.random.randint(int(h * 0.30), int(h * 0.70))
 
         if abnormality == "Mass":
             radius = np.random.randint(12, 22)
-            # Malignant masses exhibit irregular/spiculated borders
             if pathology == "MALIGNANT":
                 cv2.circle(img, (cx, cy), radius, 220, -1)
                 for _ in range(8):
@@ -118,21 +113,18 @@ def generate_synthetic_mammography_samples(output_dir: str, num_samples: int = 6
                     spk_y = int(cy + (radius + 10) * np.sin(ang))
                     cv2.line(img, (cx, cy), (spk_x, spk_y), 210, 2)
             else:
-                # Benign circumscribed oval mass
                 cv2.ellipse(img, (cx, cy), (radius, int(radius * 0.7)), 30, 0, 360, 190, -1)
         else:
-            # Microcalcification clusters (fine bright specks)
             n_specks = 15 if pathology == "MALIGNANT" else 6
             for _ in range(n_specks):
                 sx = cx + np.random.randint(-12, 12)
                 sy = cy + np.random.randint(-12, 12)
                 cv2.circle(img, (sx, sy), 1, 250, -1)
 
-        # Add digitized film noise and scanner artifact variations
+        # Noise & artifacts
         noise = np.random.normal(0, np.random.uniform(3, 14), (h, w)).astype(np.float32)
         noisy_img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
 
-        # Mild blur or scanner scratch on subset
         if i % 5 == 0:
             noisy_img = cv2.GaussianBlur(noisy_img, (5, 5), 0)
         if i % 7 == 0:
@@ -200,13 +192,6 @@ def extract_dataset_iqa(df: pd.DataFrame, max_samples: int = 500) -> pd.DataFram
 
     iqa_df = pd.DataFrame(iqa_list)
     merged_df = pd.merge(sample_df, iqa_df, on="image_id")
-
-    # Simulate realistic CNN inference confidence for mammograms
-    np.random.seed(42)
-    base_conf = 0.58 + 0.32 * merged_df["composite_quality_score"]
-    noise = np.random.normal(0, 0.05, len(merged_df))
-    merged_df["cnn_confidence"] = np.clip(base_conf + noise, 0.45, 0.99)
-
     return merged_df
 
 
@@ -215,7 +200,7 @@ def extract_dataset_iqa(df: pd.DataFrame, max_samples: int = 500) -> pd.DataFram
 # ---------------------------------------------------------
 def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
     """
-    Generate comprehensive diagnostic plots for CBIS-DDSM mammography.
+    Generate diagnostic plots for CBIS-DDSM mammography.
     """
     os.makedirs(output_dir, exist_ok=True)
     sns.set_theme(style="whitegrid")
@@ -290,7 +275,7 @@ def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
         img = cv2.imread(row["file_path"], cv2.IMREAD_GRAYSCALE)
         axes[1, i].imshow(img, cmap="gray")
         axes[1, i].set_title(
-            f"LOW CONTRAST / NOISE\nScore: {row['composite_quality_score']:.2f} | Lap: {row['laplacian_variance']:.1f}",
+            f"NOISY / LOW CONTRAST\nScore: {row['composite_quality_score']:.2f} | Lap: {row['laplacian_variance']:.1f}",
             color="red", fontsize=10, fontweight="bold"
         )
         axes[1, i].axis("off")
@@ -300,45 +285,6 @@ def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
     plt.savefig(os.path.join(output_dir, "05_quality_comparison_montage.png"), dpi=200)
     plt.close()
     print(f"[INFO] Saved all diagnostic visualization figures to: {output_dir}")
-
-
-# ---------------------------------------------------------
-# 5. Learned Decision Tree Training
-# ---------------------------------------------------------
-def train_and_evaluate_decision_tree(df: pd.DataFrame, output_dir: str):
-    """
-    Train and evaluate the Learned Decision Tree for mammography adaptive routing.
-    """
-    print("\n" + "=" * 60)
-    print("CBIS-DDSM: LEARNED DECISION TREE ADAPTIVE ROUTING")
-    print("=" * 60)
-
-    tree = AdaptiveClinicalDecisionTree(max_depth=4, min_samples_leaf=4)
-    results = tree.fit(df)
-
-    print(f"Decision Tree Test Accuracy: {results['test_accuracy'] * 100:.2f}%\n")
-    print("Feature Importances:")
-    for feat, imp in results["feature_importances"].items():
-        print(f"  - {feat:25s}: {imp:.4f}")
-
-    print("\nLearned Decision Logic Rules:")
-    print(results["rules_text"])
-
-    df["predicted_routing_decision"] = tree.predict(df)
-
-    plt.figure(figsize=(8, 4))
-    sns.countplot(data=df, x="predicted_routing_decision", hue="predicted_routing_decision", palette="Dark2", legend=False)
-    plt.title("Learned Decision Tree: Mammography Clinical Routing Actions", fontsize=13, fontweight="bold")
-    plt.xlabel("Adaptive Routing Action")
-    plt.ylabel("Number of Mammograms")
-    plt.xticks(rotation=20)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "06_adaptive_routing_distribution.png"), dpi=200)
-    plt.close()
-
-    csv_out = os.path.join(output_dir, "cbis_ddsm_quality_and_routing_metadata.csv")
-    df.to_csv(csv_out, index=False)
-    print(f"[INFO] Exported enriched clinical metadata to: {csv_out}")
 
 
 # ---------------------------------------------------------
@@ -369,8 +315,11 @@ def main():
     stats.to_csv(os.path.join(output_dir, "cbis_ddsm_iqa_statistical_summary.csv"))
 
     generate_quality_visualizations(df_iqa, output_dir)
-    train_and_evaluate_decision_tree(df_iqa, output_dir)
-    print("\nCBIS-DDSM Pipeline Execution Completed Successfully!")
+
+    csv_out = os.path.join(output_dir, "cbis_ddsm_quality_metadata.csv")
+    df_iqa.to_csv(csv_out, index=False)
+    print(f"[INFO] Exported enriched clinical IQA metadata to: {csv_out}")
+    print("\nCBIS-DDSM Analysis Pipeline Completed Successfully!")
 
 
 if __name__ == "__main__":

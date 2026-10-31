@@ -1,9 +1,9 @@
-# CBIS-DDSM: Mammography Image Quality Assessment & Adaptive Routing Pipeline
+# CBIS-DDSM: Mammography Image Quality Assessment & Characterization Pipeline
 
 ## 1. Overview & Clinical Significance
 **The Curated Breast Imaging Subset of DDSM (CBIS-DDSM)** is the definitive benchmark database for screening mammography analytics. It comprises digitized film mammograms with pixel-level lesion segmentations, pathology ground truth, and radiological assessments according to the American College of Radiology (ACR) BI-RADS lexicon.
 
-Mammographic diagnostic accuracy depends critically on image quality: low contrast, film grain, or scanner blur can obscure subtle microcalcification clusters or faint architectural distortions. This pipeline implements a complete Image Quality Assessment (IQA) and Quality-Aware Adaptive Clinical Routing framework to screen mammograms prior to CNN evaluation.
+Mammographic diagnostic accuracy depends critically on image quality: low contrast, film grain, or scanner blur can obscure subtle microcalcification clusters or faint architectural distortions. This pipeline implements an automated Image Quality Assessment (IQA) and exploratory data analysis framework to evaluate mammograms and generate quality indicators for downstream deep learning models.
 
 ---
 
@@ -15,6 +15,7 @@ To run this analysis on Kaggle:
 3. Path structure expected by the pipeline:
    - `/kaggle/input/cbis-ddsm-breast-cancer-image-dataset/` or `/kaggle/input/cbis-ddsm/`
    - *Self-Contained Fallback:* If run without an external dataset attached, the notebook automatically instantiates a synthetic mammogram cohort featuring anatomical breast profiles, pectoral muscle, dense fibroglandular parenchyma, masses, and microcalcification clusters.
+4. **Execution:** Run the cells sequentially from top to bottom. Results, statistical summaries, and enriched metadata CSV files are saved to `/kaggle/working/output/`.
 
 ---
 
@@ -85,34 +86,7 @@ Representative baseline distributions across the CBIS-DDSM mammography cohort:
 
 ---
 
-## 7. Learned Decision Tree Architecture
-The learned decision tree combines radiographic image fidelity indicators with downstream CNN prediction confidence:
-
-```mermaid
-graph TD
-    A[Mammogram: CC or MLO View] --> B[Extract IQA Vector: LapVar, Contrast, Entropy, SNR]
-    B --> C[Execute Deep CNN Detection & Classifier]
-    C --> D[Learned Decision Tree Engine]
-    D -->|High Quality & High Conf >= 0.80| E[Accept Direct Autonomous Diagnosis]
-    D -->|Low Contrast or Severe Film Noise| F[Route to Radiographic CLAHE & Denoising]
-    D -->|Borderline Quality or High Uncertainty| G[Escalate to Expert Radiologist Review]
-    D -->|Severe Blur or Missing Tissue View| H[Reject & Trigger Mammographic Re-Exposure]
-```
-
-### Learned Decision Logic Rules:
-```text
-|--- snr_db <= 10.21
-|   |--- class: Route_Image_Enhancement
-|--- snr_db >  10.21
-|   |--- cnn_confidence <= 0.80
-|   |   |--- class: Expert_Human_Review
-|   |--- cnn_confidence >  0.80
-|   |   |--- class: Accept_Direct_Prediction
-```
-
----
-
-## 8. Directory Files
+## 7. Directory Files
 - `cbis_ddsm_analytics.ipynb`: Interactive Jupyter Notebook ready for Kaggle execution.
 - `run_analysis.py`: Standalone CLI execution script.
-- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical routing CSV.
+- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical IQA metadata CSV (`cbis_ddsm_quality_metadata.csv`).

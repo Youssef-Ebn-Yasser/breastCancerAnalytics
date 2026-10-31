@@ -1,5 +1,6 @@
 """
-Common Utilities for Breast Cancer Quality Assessment and Adaptive Decision Trees.
+Common Utilities for Breast Cancer Image Quality Assessment (IQA).
+Focused purely on exploratory analysis, data characterization, and quality metrics.
 """
 
 from .iqa_metrics import (
@@ -17,12 +18,6 @@ from .iqa_metrics import (
     extract_all_iqa_metrics,
 )
 
-from .adaptive_decision_tree import (
-    AdaptiveClinicalDecisionTree,
-    generate_ground_truth_routing_policy,
-    ROUTING_CLASSES,
-)
-
 __all__ = [
     "compute_laplacian_variance",
     "compute_tenengrad",
@@ -36,7 +31,4 @@ __all__ = [
     "compute_psnr",
     "compute_ssim",
     "extract_all_iqa_metrics",
-    "AdaptiveClinicalDecisionTree",
-    "generate_ground_truth_routing_policy",
-    "ROUTING_CLASSES",
 ]

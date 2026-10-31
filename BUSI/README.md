@@ -1,9 +1,9 @@
-# BUSI: Breast Ultrasound Image Quality Assessment & Adaptive Routing Pipeline
+# BUSI: Breast Ultrasound Image Quality Assessment & Characterization Pipeline
 
 ## 1. Overview & Clinical Significance
 **The Breast Ultrasound Images Dataset (BUSI)** is the preeminent clinical benchmark for sonographic breast tumor classification and lesion segmentation. Collected in 2018 from Baheya Hospital for Early Detection and Treatment of Women's Cancer (Cairo, Egypt), it contains baseline B-mode ultrasound examinations paired with radiologist-annotated lesion segmentation masks.
 
-Ultrasound imaging is intrinsically operator-dependent and prone to acoustic artifacts (speckle noise, posterior shadowing, and refraction). This module delivers an automated Image Quality Assessment (IQA) and Quality-Aware Adaptive Clinical Routing framework designed to screen sonographic scans prior to deep learning evaluation.
+Ultrasound imaging is intrinsically operator-dependent and prone to acoustic artifacts (speckle noise, posterior shadowing, and refraction). This module delivers an automated Image Quality Assessment (IQA) and exploratory data analysis framework designed to evaluate sonographic scans and extract quality indicators for downstream deep learning models.
 
 ---
 
@@ -16,6 +16,7 @@ To execute this analysis on Kaggle:
    - `/kaggle/input/breast-ultrasound-images-dataset/Dataset_BUSI_with_masks/`
    - Subdirectories: `benign/`, `malignant/`, `normal/`
    - *Self-Contained Fallback:* If run without an external dataset attached, the notebook automatically instantiates a synthetic ultrasound cohort featuring stratified anatomical tissue layers, acoustic speckle, and paired lesion masks.
+4. **Execution:** Run the cells sequentially from top to bottom. Results, statistical summaries, and enriched metadata CSV files are saved to `/kaggle/working/output/`.
 
 ---
 
@@ -35,7 +36,7 @@ To execute this analysis on Kaggle:
 | **Acoustic Speckle Noise** | Sub-resolution phase interference from multiple tissue scatterers | Granular texture obscures fine lesion margin spiculation | Speckle Index ($C_s$) and ENL tracking; Bilateral / Anisotropic filtering |
 | **Posterior Acoustic Shadowing** | High acoustic attenuation through dense fibrous malignant tissue | Signal dropout directly behind lesions obscures deep margins | Depth-dependent gain compensation and shadow masking |
 | **Low Hypoechoic Contrast** | Minor difference in acoustic impedance between tumor and surrounding stroma | Poor edge delineation causing segmentation leakage | Contrast-to-Noise Ratio (CNR) evaluation using masks |
-| **Operator Dependence** | Handheld probe tilt, compression pressure, and manual gain settings | Non-standardized image brightness and anatomical distortion | Adaptive normalization and automated Quality Routing Tree |
+| **Operator Dependence** | Handheld probe tilt, compression pressure, and manual gain settings | Non-standardized image brightness and anatomical distortion | Adaptive normalization and automated Quality Profiling |
 
 ---
 
@@ -77,34 +78,7 @@ Representative baseline distributions across the BUSI ultrasound cohort:
 
 ---
 
-## 7. Learned Decision Tree Architecture
-The learned decision tree fuses low-level acoustic features and speckle parameters with downstream CNN prediction confidence:
-
-```mermaid
-graph TD
-    A[B-mode Ultrasound Scan] --> B[Extract IQA Vector: Speckle Index, ENL, CNR, LapVar, Entropy]
-    B --> C[Execute Deep CNN Tumor Classifier]
-    C --> D[Learned Decision Tree Engine]
-    D -->|High Quality & High Conf >= 0.80| E[Accept Direct Autonomous Diagnosis]
-    D -->|High Speckle Noise or Low Contrast| F[Route to Ultrasound Despeckling & CLAHE]
-    D -->|Borderline Quality or High Uncertainty| G[Escalate to Expert Radiologist Review]
-    D -->|Severe Acoustic Shadow / Dropout| H[Reject & Request Sonographic Re-Scan]
-```
-
-### Learned Decision Logic Rules:
-```text
-|--- snr_db <= 10.21
-|   |--- class: Route_Image_Enhancement
-|--- snr_db >  10.21
-|   |--- cnn_confidence <= 0.80
-|   |   |--- class: Expert_Human_Review
-|   |--- cnn_confidence >  0.80
-|   |   |--- class: Accept_Direct_Prediction
-```
-
----
-
-## 8. Directory Files
+## 7. Directory Files
 - `busi_analytics.ipynb`: Interactive Jupyter Notebook ready for Kaggle execution.
 - `run_analysis.py`: Standalone CLI execution script.
-- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical routing CSV.
+- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical IQA metadata CSV (`busi_quality_metadata.csv`).

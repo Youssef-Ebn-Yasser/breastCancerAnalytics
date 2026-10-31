@@ -3,12 +3,12 @@ BUSI Ultrasound Analytics & Image Quality Assessment (IQA) Pipeline.
 Modality: Breast Ultrasound (B-mode Sonography with Paired Segmentation Masks)
 Dataset: Breast Ultrasound Images Dataset (BUSI)
 
-Features:
+Scope:
 1. Dataset Characterization & Metadata Loading (Normal vs Benign vs Malignant with Paired Lesion Masks)
 2. Inherent Acoustic Challenges Analysis (Speckle noise, acoustic shadows, hypoechoic contrast)
 3. Multi-Metric IQA (Laplacian, Tenengrad, Speckle Index, ENL, CNR with Masks, Shannon Entropy, SNR)
 4. Statistical Analysis & Visual Quality Distributions
-5. Learned Decision Tree for Quality-Aware Adaptive Clinical Routing
+5. Enriched Dataset IQA Metadata Export
 """
 
 import os
@@ -33,10 +33,6 @@ from common.iqa_metrics import (
     compute_cnr,
     compute_ultrasound_speckle_metrics,
     extract_all_iqa_metrics,
-)
-from common.adaptive_decision_tree import (
-    AdaptiveClinicalDecisionTree,
-    generate_ground_truth_routing_policy,
 )
 
 # ---------------------------------------------------------
@@ -83,12 +79,10 @@ def generate_synthetic_ultrasound_samples(output_dir: str, num_samples: int = 60
         os.makedirs(cls_dir, exist_ok=True)
 
         h, w = 256, 256
-        # Background tissue parenchyma (hyperechoic fibro-fatty layers)
         base = np.zeros((h, w), dtype=np.float32)
-        # Stratified tissue layers
-        base[0:int(h * 0.25), :] = 80.0    # Skin & subcutaneous fat
-        base[int(h * 0.25):int(h * 0.75), :] = 120.0  # Mammary zone parenchyma
-        base[int(h * 0.75):, :] = 60.0    # Retromammary zone & pectoralis
+        base[0:int(h * 0.25), :] = 80.0
+        base[int(h * 0.25):int(h * 0.75), :] = 120.0
+        base[int(h * 0.75):, :] = 60.0
 
         mask = np.zeros((h, w), dtype=np.uint8)
 
@@ -97,33 +91,24 @@ def generate_synthetic_ultrasound_samples(output_dir: str, num_samples: int = 60
             cy = np.random.randint(int(h * 0.35), int(h * 0.65))
 
             if cls == "benign":
-                # Benign: Smooth, circumscribed oval hypoechoic lesion (wider than tall)
                 rx = np.random.randint(25, 40)
                 ry = np.random.randint(15, 25)
                 cv2.ellipse(mask, (cx, cy), (rx, ry), 0, 0, 360, 255, -1)
-                # Hypoechoic core
                 base[mask > 0] = np.random.uniform(40, 55)
             else:
-                # Malignant: Taller-than-wide or irregular, spiculated hypoechoic lesion
                 rx = np.random.randint(20, 35)
                 ry = np.random.randint(25, 45)
                 cv2.ellipse(mask, (cx, cy), (rx, ry), 15, 0, 360, 255, -1)
-                # Microlobulated / irregular borders
                 for _ in range(10):
                     px = cx + np.random.randint(-rx, rx)
                     py = cy + np.random.randint(-ry, ry)
                     cv2.circle(mask, (px, py), np.random.randint(6, 12), 255, -1)
                 base[mask > 0] = np.random.uniform(25, 45)
-
-                # Posterior acoustic shadow (dark vertical column under malignant lesion)
                 base[cy + ry:h, max(0, cx - rx):min(w, cx + rx)] *= 0.45
 
-        # Apply Multiplicative Acoustic Speckle Noise
-        # Ultrasound speckle follows a Rayleigh/Gamma distribution
         speckle = np.random.gamma(shape=4.0, scale=0.25, size=(h, w))
         us_img = np.clip(base * speckle, 0, 255).astype(np.uint8)
 
-        # Mild transducer blur
         if i % 4 == 0:
             us_img = cv2.GaussianBlur(us_img, (5, 5), 0)
 
@@ -163,7 +148,6 @@ def load_busi_metadata(data_dir: str) -> pd.DataFrame:
         elif "malignant" in parent or "malignant" in fname.lower():
             cls = "malignant"
 
-        # Look for corresponding mask file
         mask_candidate = p.parent / f"{stem}_mask{p.suffix}"
         if not mask_candidate.exists():
             mask_candidate = p.parent / f"{stem}_mask_1{p.suffix}"
@@ -207,13 +191,6 @@ def extract_dataset_iqa(df: pd.DataFrame, max_samples: int = 500) -> pd.DataFram
 
     iqa_df = pd.DataFrame(iqa_list)
     merged_df = pd.merge(sample_df, iqa_df, on="image_id")
-
-    # Simulate realistic CNN inference confidence for ultrasound
-    np.random.seed(42)
-    base_conf = 0.54 + 0.36 * merged_df["composite_quality_score"]
-    noise = np.random.normal(0, 0.05, len(merged_df))
-    merged_df["cnn_confidence"] = np.clip(base_conf + noise, 0.40, 0.99)
-
     return merged_df
 
 
@@ -312,45 +289,6 @@ def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
 
 
 # ---------------------------------------------------------
-# 5. Learned Decision Tree Training
-# ---------------------------------------------------------
-def train_and_evaluate_decision_tree(df: pd.DataFrame, output_dir: str):
-    """
-    Train and evaluate the Learned Decision Tree for ultrasound adaptive routing.
-    """
-    print("\n" + "=" * 60)
-    print("BUSI: LEARNED DECISION TREE ADAPTIVE ROUTING")
-    print("=" * 60)
-
-    tree = AdaptiveClinicalDecisionTree(max_depth=4, min_samples_leaf=4)
-    results = tree.fit(df)
-
-    print(f"Decision Tree Test Accuracy: {results['test_accuracy'] * 100:.2f}%\n")
-    print("Feature Importances:")
-    for feat, imp in results["feature_importances"].items():
-        print(f"  - {feat:25s}: {imp:.4f}")
-
-    print("\nLearned Decision Logic Rules:")
-    print(results["rules_text"])
-
-    df["predicted_routing_decision"] = tree.predict(df)
-
-    plt.figure(figsize=(8, 4))
-    sns.countplot(data=df, x="predicted_routing_decision", hue="predicted_routing_decision", palette="cubehelix", legend=False)
-    plt.title("Learned Decision Tree: Ultrasound Adaptive Clinical Routing", fontsize=13, fontweight="bold")
-    plt.xlabel("Adaptive Routing Action")
-    plt.ylabel("Number of Scans")
-    plt.xticks(rotation=20)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "06_adaptive_routing_distribution.png"), dpi=200)
-    plt.close()
-
-    csv_out = os.path.join(output_dir, "busi_quality_and_routing_metadata.csv")
-    df.to_csv(csv_out, index=False)
-    print(f"[INFO] Exported enriched clinical metadata to: {csv_out}")
-
-
-# ---------------------------------------------------------
 # Main Execution Entrypoint
 # ---------------------------------------------------------
 def main():
@@ -378,8 +316,11 @@ def main():
     stats.to_csv(os.path.join(output_dir, "busi_iqa_statistical_summary.csv"))
 
     generate_quality_visualizations(df_iqa, output_dir)
-    train_and_evaluate_decision_tree(df_iqa, output_dir)
-    print("\nBUSI Pipeline Execution Completed Successfully!")
+
+    csv_out = os.path.join(output_dir, "busi_quality_metadata.csv")
+    df_iqa.to_csv(csv_out, index=False)
+    print(f"[INFO] Exported enriched clinical IQA metadata to: {csv_out}")
+    print("\nBUSI Analysis Pipeline Completed Successfully!")
 
 
 if __name__ == "__main__":

@@ -3,12 +3,12 @@ TCGA-BRCA Histopathology Analytics & Image Quality Assessment (IQA) Pipeline.
 Modality: Histopathology (Tissue Whole Slide Imaging / Diagnostic Patches)
 Dataset: The Cancer Genome Atlas Breast Invasive Carcinoma (TCGA-BRCA)
 
-Features:
+Scope:
 1. Dataset Characterization & Class Imbalance Analysis (IDC vs ILC vs Normal, Frozen vs FFPE)
 2. Inherent Artifact & Challenge Identification (Stain variation, blur, knife chatter)
 3. Multi-Metric Image Quality Assessment (Laplacian, Tenengrad, RMS Contrast, Entropy, SNR)
 4. Statistical Analysis & Visual Quality Distribution
-5. Learned Decision Tree for Quality-Aware Adaptive Clinical Routing
+5. Enriched Dataset IQA Metadata Export
 """
 
 import os
@@ -31,13 +31,7 @@ from common.iqa_metrics import (
     compute_shannon_entropy,
     compute_snr_mad,
     compute_perceptual_nss_score,
-    compute_psnr,
-    compute_ssim,
     extract_all_iqa_metrics,
-)
-from common.adaptive_decision_tree import (
-    AdaptiveClinicalDecisionTree,
-    generate_ground_truth_routing_policy,
 )
 
 # ---------------------------------------------------------
@@ -86,34 +80,30 @@ def generate_synthetic_histology_samples(output_dir: str, num_samples: int = 60)
         cls_dir = os.path.join(output_dir, cls)
         os.makedirs(cls_dir, exist_ok=True)
 
-        # Base background: Eosin pinkish-white stroma
         h, w = 256, 256
         img = np.ones((h, w, 3), dtype=np.uint8)
         img[:, :, 0] = np.random.randint(200, 230)  # B
         img[:, :, 1] = np.random.randint(170, 200)  # G
         img[:, :, 2] = np.random.randint(220, 245)  # R (Eosin pink tint)
 
-        # Draw collagen fibers / connective tissue background
+        # Draw collagen fibers
         for _ in range(25):
             pt1 = (np.random.randint(0, w), np.random.randint(0, h))
             pt2 = (np.random.randint(0, w), np.random.randint(0, h))
             cv2.line(img, pt1, pt2, (180, 140, 210), 1)
 
-        # Draw cell nuclei (Hematoxylin purple / deep violet)
+        # Draw cell nuclei (Hematoxylin purple)
         num_nuclei = 120 if cls == "IDC_Malignant" else (60 if cls == "ILC_Malignant" else 30)
         for _ in range(num_nuclei):
             cx = np.random.randint(15, w - 15)
             cy = np.random.randint(15, h - 15)
             r = np.random.randint(3, 7)
-            # Hematoxylin deep violet
             cv2.circle(img, (cx, cy), r, (130, 40, 80), -1)
 
-        # Apply preparation artifacts: Frozen Section induces blur and knife scratches
+        # Frozen Section blur or scratch
         if prep == "Frozen_Section":
-            # Defocus blur or freezing chatter
             k = np.random.choice([3, 5, 7])
             img = cv2.GaussianBlur(img, (k, k), 0)
-            # Add knife scratch artifact
             if np.random.rand() > 0.5:
                 cv2.line(img, (0, np.random.randint(20, h - 20)), (w, np.random.randint(20, h - 20)), (240, 240, 240), 2)
 
@@ -138,9 +128,7 @@ def load_tcga_brca_metadata(data_dir: str) -> pd.DataFrame:
 
     records = []
     for path in image_paths:
-        parts = Path(path).parts
         filename = Path(path).name
-        # Infer class from parent folder or filename
         parent = Path(path).parent.name
         prep = "Frozen_Section" if "frozen" in filename.lower() or "frozen" in parent.lower() else "FFPE"
 
@@ -183,14 +171,6 @@ def extract_dataset_iqa(df: pd.DataFrame, max_samples: int = 500) -> pd.DataFram
 
     iqa_df = pd.DataFrame(iqa_list)
     merged_df = pd.merge(sample_df, iqa_df, on="image_id")
-
-    # Simulate realistic CNN inference confidence for downstream decision tree
-    np.random.seed(42)
-    # Higher quality images generally yield higher confidence from well-trained CNNs
-    base_conf = 0.55 + 0.35 * merged_df["composite_quality_score"]
-    noise = np.random.normal(0, 0.05, len(merged_df))
-    merged_df["cnn_confidence"] = np.clip(base_conf + noise, 0.40, 0.99)
-
     return merged_df
 
 
@@ -199,7 +179,7 @@ def extract_dataset_iqa(df: pd.DataFrame, max_samples: int = 500) -> pd.DataFram
 # ---------------------------------------------------------
 def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
     """
-    Generate comprehensive statistical plots:
+    Generate diagnostic statistical plots:
     - Distribution of Laplacian Variance, RMS Contrast, Shannon Entropy, SNR
     - Best vs Degraded Quality Sample Montages
     - Correlation Matrix of Quality Metrics
@@ -238,7 +218,7 @@ def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
 
     # 3. Quality by Preparation Type (FFPE vs Frozen Section)
     plt.figure(figsize=(9, 5))
-    sns.boxplot(data=df, x="preparation_type", y="laplacian_variance", palette="Pastel1")
+    sns.boxplot(data=df, x="preparation_type", y="laplacian_variance", hue="preparation_type", palette="Pastel1", legend=False)
     plt.title("Sharpness Comparison: FFPE vs. Frozen Section Artifacts", fontsize=13, fontweight="bold")
     plt.ylabel("Laplacian Variance (Sharpness)")
     plt.tight_layout()
@@ -292,52 +272,10 @@ def generate_quality_visualizations(df: pd.DataFrame, output_dir: str):
 
 
 # ---------------------------------------------------------
-# 5. Learned Decision Tree Training
-# ---------------------------------------------------------
-def train_and_evaluate_decision_tree(df: pd.DataFrame, output_dir: str):
-    """
-    Train and evaluate the Learned Decision Tree for quality-aware adaptive clinical routing.
-    """
-    print("\n" + "=" * 60)
-    print("LEARNED DECISION TREE: ADAPTIVE CLINICAL ROUTING PIPELINE")
-    print("=" * 60)
-
-    tree = AdaptiveClinicalDecisionTree(max_depth=4, min_samples_leaf=4)
-    results = tree.fit(df)
-
-    print(f"Decision Tree Test Accuracy: {results['test_accuracy'] * 100:.2f}%\n")
-    print("Feature Importances:")
-    for feat, imp in results["feature_importances"].items():
-        print(f"  - {feat:25s}: {imp:.4f}")
-
-    print("\nLearned Decision Logic Rules:")
-    print(results["rules_text"])
-
-    # Predict routing decision for all rows and append
-    df["predicted_routing_decision"] = tree.predict(df)
-
-    # Plot Routing Action Distribution
-    plt.figure(figsize=(8, 4))
-    sns.countplot(data=df, x="predicted_routing_decision", palette="Set1")
-    plt.title("Learned Decision Tree: Adaptive Routing Distribution", fontsize=13, fontweight="bold")
-    plt.xlabel("Adaptive Decision")
-    plt.ylabel("Number of Cases")
-    plt.xticks(rotation=20)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "06_adaptive_routing_distribution.png"), dpi=200)
-    plt.close()
-
-    # Save final enriched CSV
-    csv_out = os.path.join(output_dir, "tcga_brca_quality_and_routing_metadata.csv")
-    df.to_csv(csv_out, index=False)
-    print(f"[INFO] Exported enriched clinical metadata to: {csv_out}")
-
-
-# ---------------------------------------------------------
 # Main Execution Entrypoint
 # ---------------------------------------------------------
 def main():
-    print("Starting TCGA-BRCA Analytics Pipeline...")
+    print("Starting TCGA-BRCA Histopathology Analytics Pipeline...")
     output_dir = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -361,8 +299,12 @@ def main():
     stats.to_csv(os.path.join(output_dir, "tcga_brca_iqa_statistical_summary.csv"))
 
     generate_quality_visualizations(df_iqa, output_dir)
-    train_and_evaluate_decision_tree(df_iqa, output_dir)
-    print("\nTCGA-BRCA Pipeline Execution Completed Successfully!")
+
+    # Save final enriched metadata CSV
+    csv_out = os.path.join(output_dir, "tcga_brca_quality_metadata.csv")
+    df_iqa.to_csv(csv_out, index=False)
+    print(f"[INFO] Exported enriched clinical IQA metadata to: {csv_out}")
+    print("\nTCGA-BRCA Analysis Pipeline Completed Successfully!")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,11 @@
-# Breast Cancer Analytics: Multi-Modal Image Quality Assessment (IQA) & Adaptive Clinical Routing Framework
+# Breast Cancer Analytics: Multi-Modal Image Quality Assessment (IQA) & Exploratory Analytics Framework
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Modality](https://img.shields.io/badge/Modality-Histopathology%20%7C%20Mammography%20%7C%20Ultrasound-purple.svg)]()
 [![Platform](https://img.shields.io/badge/Platform-Kaggle%20%7C%20Local-orange.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
-A comprehensive multi-modal analytics, Image Quality Assessment (IQA), and quality-aware adaptive clinical routing framework for breast cancer computer-aided diagnosis (CAD). 
-
-This repository provides reproducible pipelines across three premier breast cancer datasets representing three distinct clinical imaging modalities:
+A comprehensive multi-modal analytics and Image Quality Assessment (IQA) framework for breast cancer computer-aided diagnosis (CAD). This repository provides reproducible analysis pipelines, mathematical quality indicators, and diagnostic profiles across three premier breast cancer datasets representing three distinct clinical imaging modalities:
 1. **Histopathology:** [TCGA-BRCA](TCGA-BRCA/README.md) (The Cancer Genome Atlas - Breast Invasive Carcinoma)
 2. **Mammography:** [CBIS-DDSM](CBIS-DDSM/README.md) (Curated Breast Imaging Subset of DDSM)
 3. **Ultrasound:** [BUSI](BUSI/README.md) (Breast Ultrasound Images Dataset)
@@ -175,9 +173,9 @@ graph TD
 
 ---
 
-## 🏗️ End-to-End System Architecture
+## 🏗️ End-to-End Image Quality Assessment Architecture
 
-The following diagram illustrates how raw multi-modal imaging cohorts are processed through our **No-Reference IQA Engine**, paired with downstream task classifiers, and governed by the **Learned Decision Tree** for adaptive clinical routing:
+The following diagram illustrates how raw multi-modal imaging cohorts are processed through our **No-Reference IQA Engine** to extract physical quality indicators and export structured clinical metadata:
 
 ```mermaid
 graph TD
@@ -195,21 +193,14 @@ graph TD
         B5["Structural Contrast: CNR via Lesion Masks"]
     end
 
-    subgraph Feature_Vector["Enriched Metadata Generation"]
-        C1["IQA Metric Vector + CNN Predictive Confidence"]
-    end
-
-    subgraph Decision_Engine["Learned Decision Tree Adaptive Engine"]
-        D1{"Adaptive Clinical Routing Policy"}
-        D1 -->|High Quality & High Confidence| E1["Tier 1: Accept Direct Autonomous Diagnosis"]
-        D1 -->|Degraded Contrast or Noise| E2["Tier 2: Route to Automated Image Enhancement"]
-        D1 -->|Borderline Quality / Ambiguity| E3["Tier 3: Escalate to Expert Specialist Review"]
-        D1 -->|Severe Blur / Dropout / Artifact| E4["Tier 4: Reject & Trigger Re-Acquisition"]
+    subgraph Enriched_Metadata["Structured Data Output"]
+        C1["Enriched IQA Metadata CSV<br>(Image IDs, Labels, Quality Metrics, Quality Tiers)"]
+        C2["Statistical Summaries & Correlation Matrices"]
+        C3["Visual Diagnostic Montages"]
     end
 
     Multi_Modal_Data --> IQA_Engine
-    IQA_Engine --> Feature_Vector
-    Feature_Vector --> Decision_Engine
+    IQA_Engine --> Enriched_Metadata
 ```
 
 ---
@@ -254,20 +245,6 @@ graph TD
 
 ---
 
-## 🎯 Learned Decision Tree for Adaptive Clinical Routing
-
-A major hazard in clinical deep learning is blindly relying on CNN inference when an input scan suffers from severe blur, scanner noise, or out-of-focus artifacts.
-
-Our framework trains a multi-criteria **Learned Decision Tree** that takes:
-- Input Features: `[laplacian_variance, tenengrad, rms_contrast, michelson_contrast, shannon_entropy, snr_db, cnr, cnn_confidence]`
-- Target Clinical Routing Actions:
-  1. **Accept_Direct_Prediction:** High image quality ($Q \ge 0.60$) and high model confidence ($\ge 0.80$) $\to$ Autonomous diagnostic sign-off.
-  2. **Route_Image_Enhancement:** Low contrast or elevated sensor noise with intact sharpness $\to$ Route to automated preprocessing (CLAHE, bilateral filtering, stain normalization) prior to re-inference.
-  3. **Expert_Human_Review:** Borderline quality or model uncertainty $\to$ Escalate case to specialist radiologist / pathologist with flagged quality issues.
-  4. **Reject_Reacquire:** Severe defocus, blank slide, or transducer dropout $\to$ Trigger immediate clinical re-acquisition alert.
-
----
-
 ## 🖼️ Visual Demonstrations of Image Quality Variations
 
 Below are side-by-side diagnostic montages generated across each modality, highlighting high-quality scans versus degraded scans flagged by our IQA engine:
@@ -293,29 +270,28 @@ breastCancerAnalytics/
 │
 ├── common/                             # Shared modular utilities
 │   ├── __init__.py                     # Package export definitions
-│   ├── iqa_metrics.py                  # Core IQA formulas & feature extractors
-│   └── adaptive_decision_tree.py       # Decision tree training & routing engine
+│   └── iqa_metrics.py                  # Core IQA formulas & feature extractors
 │
 ├── TCGA-BRCA/                          # Histopathology Category
 │   ├── README.md                       # Comprehensive modality guide & benchmarks
 │   ├── tcga_brca_analytics.ipynb       # Kaggle-ready notebook with cell-by-cell execution
 │   ├── run_analysis.py                 # Standalone execution CLI script
 │   ├── sample_data/                    # Lightweight sample histology cohort for instant runs
-│   └── output/                         # Generated diagnostic figures, summary CSV, and routing table
+│   └── output/                         # Diagnostic figures, summary CSV, and quality metadata CSV
 │
 ├── CBIS-DDSM/                          # Mammography Category
 │   ├── README.md                       # Comprehensive modality guide & benchmarks
 │   ├── cbis_ddsm_analytics.ipynb       # Kaggle-ready notebook with cell-by-cell execution
 │   ├── run_analysis.py                 # Standalone execution CLI script
 │   ├── sample_data/                    # Lightweight sample mammography cohort for instant runs
-│   └── output/                         # Generated diagnostic figures, summary CSV, and routing table
+│   └── output/                         # Diagnostic figures, summary CSV, and quality metadata CSV
 │
 └── BUSI/                               # Ultrasound Category
     ├── README.md                       # Comprehensive modality guide & benchmarks
     ├── busi_analytics.ipynb            # Kaggle-ready notebook with cell-by-cell execution
     ├── run_analysis.py                 # Standalone execution CLI script
     ├── sample_data/                    # Lightweight sample ultrasound cohort with masks
-    └── output/                         # Generated diagnostic figures, summary CSV, and routing table
+    └── output/                         # Diagnostic figures, summary CSV, and quality metadata CSV
 ```
 
 ---
@@ -330,7 +306,7 @@ Each folder contains a standalone, cell-by-cell Jupyter Notebook (`*.ipynb`) des
    - For Histology: `paultimothymooney/breast-histopathology-images` or `tcga-brca`
    - For Mammography: `awsaf49/cbis-ddsm-breast-cancer-image-dataset`
    - For Ultrasound: `aryashah2k/breast-ultrasound-images-dataset`
-4. Click **Run All**. The notebook auto-detects paths, processes scans, plots diagnostic figures, trains the decision tree, and saves enriched CSV files to `/kaggle/working/output/`.
+4. **Important Execution Instruction:** You must execute the cells sequentially from Cell 1 down to the final cell. Cell 1 sets up imports, Cell 2 detects the dataset path, Cell 4 aggregates metadata, Cell 5/6 extracts IQA features, and Cell 7 displays descriptive statistics and visual montages, saving `quality_metadata.csv` to `/kaggle/working/output/`.
 
 ### Option B: Running Locally via CLI
 Clone the repository and run any modality pipeline directly:
@@ -340,7 +316,7 @@ git clone https://github.com/Youssef-Ebn-Yasser/breastCancerAnalytics.git
 cd breastCancerAnalytics
 
 # Install requirements
-pip install numpy pandas opencv-python matplotlib seaborn scipy scikit-learn nbformat
+pip install numpy pandas opencv-python matplotlib seaborn scipy scikit-learn nbformat python-docx
 
 # Run TCGA-BRCA Histopathology Pipeline
 python TCGA-BRCA/run_analysis.py
@@ -369,5 +345,5 @@ python BUSI/run_analysis.py
 ---
 
 ## 👥 Contributors & Citation
-Developed for advanced multi-modal breast cancer computer vision and quality-aware medical decision support systems.
+Developed for advanced multi-modal breast cancer computer vision, Image Quality Assessment, and clinical data preparation.
 Repository: [https://github.com/Youssef-Ebn-Yasser/breastCancerAnalytics.git](https://github.com/Youssef-Ebn-Yasser/breastCancerAnalytics.git)

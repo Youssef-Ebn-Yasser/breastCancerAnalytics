@@ -1,9 +1,9 @@
-# TCGA-BRCA: Histopathology Image Quality Assessment & Adaptive Routing Pipeline
+# TCGA-BRCA: Histopathology Image Quality Assessment & Characterization Pipeline
 
 ## 1. Overview & Clinical Significance
 **The Cancer Genome Atlas Breast Invasive Carcinoma (TCGA-BRCA)** is the global gold standard multi-center cohort for breast histopathology and molecular oncology. It contains diagnostic Whole Slide Images (WSI) and tissue microarray patches stained with Hematoxylin and Eosin (H&E).
 
-This module delivers an automated Image Quality Assessment (IQA) and Quality-Aware Adaptive Clinical Routing framework designed to screen histology slides before deep learning inference, mitigating diagnostic errors caused by slide preparation defects.
+This module delivers an automated Image Quality Assessment (IQA) and exploratory data analysis pipeline designed to characterize histological images, detect slide preparation defects, and extract quality indicators necessary for downstream deep learning models.
 
 ---
 
@@ -15,6 +15,7 @@ To execute this analysis on Kaggle:
 3. Path structure expected by the pipeline:
    - `/kaggle/input/tcga-brca/` or `/kaggle/input/breast-histopathology-images/`
    - *Self-Contained Fallback:* If no external dataset is mounted, the notebook automatically instantiates a synthetic histology validation cohort with realistic morphological and staining characteristics.
+4. **Execution:** Run the cells sequentially from top to bottom. Results, statistical summaries, and enriched metadata CSV files are saved to `/kaggle/working/output/`.
 
 ---
 
@@ -33,11 +34,11 @@ To execute this analysis on Kaggle:
 ## 4. Inherent Histology Challenges & Artifacts
 | Challenge / Artifact | Root Cause | Impact on Vision Models | Preprocessing Remedy |
 | :--- | :--- | :--- | :--- |
-| **Defocus Blur** | Scanner auto-focus failure across uneven glass slide topography | Loss of chromatin texture and nuclear membrane boundary | Laplacian thresholding; reject re-acquisition or optical deconvolution |
-| **Freezing Chatter** | Vibrations during microtome sectioning of frozen tissue | Rhythmic horizontal compression bands across cells | High-frequency filtering; adaptive routing to human pathologist |
+| **Defocus Blur** | Scanner auto-focus failure across uneven glass slide topography | Loss of chromatin texture and nuclear membrane boundary | Laplacian thresholding; image deconvolution or patch filtering |
+| **Freezing Chatter** | Vibrations during microtome sectioning of frozen tissue | Rhythmic horizontal compression bands across cells | High-frequency filtering and quality flagging |
 | **H&E Staining Batch Variations** | Varied dye formulations, pH, and incubation timing across pathology labs | Shifts in RGB color space causing CNN domain generalization drift | Macenko / Vahadane optical density stain normalization |
 | **Tissue Folds & Bubbles** | Air pockets under coverslip or folding during mounting | Non-biological hyper-dense or void regions | Shannon Entropy filtering & tissue segmentation masks |
-| **Severe Class Imbalance** | Disproportionate ratio of background stroma vs neoplastic nuclei | Misclassification of sparse lobular lesions | Focal loss, patch-level sampling, and hard-negative mining |
+| **Severe Class Imbalance** | Disproportionate ratio of background stroma vs neoplastic nuclei | Misclassification of sparse lobular lesions | Focal loss, patch-level balanced sampling, and hard-negative mining |
 
 ---
 
@@ -59,8 +60,7 @@ $$H(I) = -\sum_{k=0}^{255} p(k) \log_2 (p(k) + \epsilon)$$
 Distinguishes informative, highly cellular tumor nests ($H \approx 6.8 - 7.6\text{ bits}$) from blank glass slide areas ($H < 3.5\text{ bits}$).
 
 ### 5. Signal-to-Noise Ratio via Median Absolute Deviation (Blind SNR)
-$$\sigma_n = \frac{\text{median}(|\nabla^2 I - \text{median}(\nabla^2 I)|)}{0.6745}$$
-$$\text{SNR}_{\text{dB}} = 20 \log_{10}\left( \frac{\mu_I + \epsilon}{\sigma_n + \epsilon} \right)$$
+$$\sigma_n = \frac{\text{median}(|\nabla^2 I - \text{median}(\nabla^2 I)|)}{0.6745}, \quad \text{SNR}_{\text{dB}} = 20 \log_{10}\left( \frac{\mu_I + \epsilon}{\sigma_n + \epsilon} \right)$$
 Quantifies sensor noise without requiring pristine reference histology images.
 
 ---
@@ -79,34 +79,7 @@ Representative baseline distributions across the TCGA-BRCA histology validation 
 
 ---
 
-## 7. Learned Decision Tree Architecture
-The learned decision tree fuses low-level optical features with downstream CNN classifier confidence ($\max P(y|x)$) to produce an adaptive clinical routing action:
-
-```mermaid
-graph TD
-    A[Histopathology Patch] --> B[Extract IQA Vector: LapVar, Contrast, Entropy, SNR]
-    B --> C[Run Deep CNN Classifier]
-    C --> D[Learned Decision Tree Engine]
-    D -->|High Quality & High Conf >= 0.80| E[Accept Direct Autonomous Diagnosis]
-    D -->|Low Contrast or Sensor Noise| F[Route to Automated Enhancement / Stain Normalization]
-    D -->|Borderline Quality or High Uncertainty| G[Escalate to Expert Pathologist Review]
-    D -->|Severe Defocus or Blank Slide| H[Reject & Trigger Re-Acquisition / Re-Scan]
-```
-
-### Learned Decision Logic Rules:
-```text
-|--- tenengrad_gradient <= 10000.59
-|   |--- class: Route_Image_Enhancement
-|--- tenengrad_gradient >  10000.59
-|   |--- cnn_confidence <= 0.80
-|   |   |--- class: Expert_Human_Review
-|   |--- cnn_confidence >  0.80
-|   |   |--- class: Accept_Direct_Prediction
-```
-
----
-
-## 8. Directory Files
+## 7. Directory Files
 - `tcga_brca_analytics.ipynb`: Complete Jupyter Notebook ready for one-click Kaggle execution.
 - `run_analysis.py`: Standalone CLI script generating statistical tables, plots, and CSV exports.
-- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical routing CSV.
+- `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical IQA metadata CSV (`tcga_brca_quality_metadata.csv`).
