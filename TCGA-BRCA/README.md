@@ -81,5 +81,6 @@ Representative baseline distributions across the TCGA-BRCA histology validation 
 
 ## 7. Directory Files
 - `tcga_brca_analytics.ipynb`: Complete Jupyter Notebook ready for one-click Kaggle execution.
+- `tcga_brca_colab.ipynb`: Optimized Google Colab notebook with one-click zip download of figures and CSVs.
 - `run_analysis.py`: Standalone CLI script generating statistical tables, plots, and CSV exports.
 - `output/`: Generated diagnostic figures, IQA statistical summary, and enriched clinical IQA metadata CSV (`tcga_brca_quality_metadata.csv`).

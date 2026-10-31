@@ -275,6 +275,7 @@ breastCancerAnalytics/
 ├── TCGA-BRCA/                          # Histopathology Category
 │   ├── README.md                       # Comprehensive modality guide & benchmarks
 │   ├── tcga_brca_analytics.ipynb       # Kaggle-ready notebook with cell-by-cell execution
+│   ├── tcga_brca_colab.ipynb           # Google Colab notebook with one-click results download
 │   ├── run_analysis.py                 # Standalone execution CLI script
 │   ├── sample_data/                    # Lightweight sample histology cohort for instant runs
 │   └── output/                         # Diagnostic figures, summary CSV, and quality metadata CSV
