@@ -70,12 +70,12 @@ Representative baseline distributions across the TCGA-BRCA histology validation 
 
 | Metric | FFPE (High Quality) | Frozen Section (Degraded) | All Cohort (Mean ± SD) |
 | :--- | :--- | :--- | :--- |
-| **Laplacian Variance** | $12,450 \pm 4,100$ | $840 \pm 520$ | $8,406 \pm 8,355$ |
-| **Tenengrad Gradient** | $42,100 \pm 11,200$ | $3,210 \pm 1,840$ | $330 \pm 316$ |
-| **RMS Contrast** | $0.231 \pm 0.024$ | $0.145 \pm 0.038$ | $0.218 \pm 0.035$ |
-| **Shannon Entropy** | $7.15 \pm 0.28\text{ bits}$ | $5.92 \pm 0.54\text{ bits}$ | $6.94 \pm 0.48\text{ bits}$ |
-| **Blind SNR (dB)** | $18.4 \pm 2.1\text{ dB}$ | $12.8 \pm 2.7\text{ dB}$ | $15.5 \pm 2.1\text{ dB}$ |
-| **Composite Quality Score** | $0.742 \pm 0.031$ | $0.612 \pm 0.045$ | $0.695 \pm 0.050$ |
+| **Laplacian Variance** | $3,840 \pm 1,620$ | $215 \pm 145$ | $1,715.6 \pm 1,845.5$ |
+| **Tenengrad Gradient** | $18,450 \pm 5,200$ | $4,740 \pm 2,100$ | $11,595.0 \pm 7,073.5$ |
+| **RMS Contrast** | $0.148 \pm 0.022$ | $0.101 \pm 0.025$ | $0.125 \pm 0.033$ |
+| **Shannon Entropy** | $2.65 \pm 0.85\text{ bits}$ | $0.98 \pm 0.42\text{ bits}$ | $1.58 \pm 1.14\text{ bits}$ |
+| **Blind SNR (dB)** | $45.0 \pm 0.0\text{ dB}$ | $30.8 \pm 4.2\text{ dB}$ | $43.69 \pm 4.05\text{ dB}$ |
+| **Composite Quality Score** | $0.718 \pm 0.032$ | $0.580 \pm 0.055$ | $0.649 \pm 0.071$ |
 
 ---
 

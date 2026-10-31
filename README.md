@@ -335,13 +335,13 @@ python BUSI/run_analysis.py
 
 | Metric | TCGA-BRCA (Histology) | CBIS-DDSM (Mammography) | BUSI (Ultrasound) |
 | :--- | :--- | :--- | :--- |
-| **Laplacian Variance ($\sigma^2_{\Delta}$)** | $8,406 \pm 8,355$ | $6,240 \pm 4,456$ | $4,244 \pm 2,849$ |
-| **Tenengrad Gradient ($T$)** | $330 \pm 316$ | $8,950 \pm 3,800$ | $1,250 \pm 420$ |
-| **RMS Dynamic Contrast ($C_{\text{RMS}}$)** | $0.218 \pm 0.035$ | $0.210 \pm 0.032$ | $0.198 \pm 0.032$ |
-| **Shannon Entropy ($H$)** | $6.94 \pm 0.48\text{ bits}$ | $6.85 \pm 0.41\text{ bits}$ | $6.72 \pm 0.39\text{ bits}$ |
-| **Blind SNR ($\text{dB}$)** | $15.5 \pm 2.1\text{ dB}$ | $14.2 \pm 2.4\text{ dB}$ | $16.1 \pm 1.9\text{ dB}$ |
+| **Laplacian Variance ($\sigma^2_{\Delta}$)** | $1,716 \pm 1,846$ | $6,240 \pm 4,456$ | $4,244 \pm 2,849$ |
+| **Tenengrad Gradient ($T$)** | $11,595 \pm 7,074$ | $8,950 \pm 3,800$ | $1,250 \pm 420$ |
+| **RMS Dynamic Contrast ($C_{\text{RMS}}$)** | $0.125 \pm 0.033$ | $0.210 \pm 0.032$ | $0.198 \pm 0.032$ |
+| **Shannon Entropy ($H$)** | $1.58 \pm 1.14\text{ bits}$ | $6.85 \pm 0.41\text{ bits}$ | $6.72 \pm 0.39\text{ bits}$ |
+| **Blind SNR ($\text{dB}$)** | $43.69 \pm 4.05\text{ dB}$ | $14.2 \pm 2.4\text{ dB}$ | $16.1 \pm 1.9\text{ dB}$ |
 | **Modality-Specific Metric** | Staining Saturation: $0.34 \pm 0.08$ | Dense Tissue Ratio: $0.28 \pm 0.09$ | Speckle Index ($C_s$): $0.34 \pm 0.09$<br>ENL: $12.4 \pm 6.1$ |
-| **Mean Composite Quality Score** | $0.695 \pm 0.050$ | $0.699 \pm 0.030$ | $0.670 \pm 0.038$ |
+| **Mean Composite Quality Score** | $0.649 \pm 0.071$ | $0.699 \pm 0.030$ | $0.670 \pm 0.038$ |
 
 ---
 
